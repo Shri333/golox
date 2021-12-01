@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/Shri333/golox/ast"
 	"github.com/Shri333/golox/scanner"
 )
 
@@ -46,8 +47,14 @@ func runPrompt() {
 func run(source string) {
 	scanner := scanner.NewScanner(source)
 	scanner.ScanTokens()
+	if scanner.Error != nil {
+		return
+	}
 
-	for _, token := range scanner.Tokens {
-		fmt.Println(token)
+	parser := ast.NewParser(scanner.Tokens)
+	expr := parser.Parse()
+	if !parser.Error {
+		printer := &ast.Printer{}
+		fmt.Println(printer.Print(expr))
 	}
 }

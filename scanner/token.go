@@ -50,13 +50,6 @@ const (
 	EOF = -39
 )
 
-type Token struct {
-	TokenType int
-	Lexeme    string
-	Literal   interface{}
-	Line      int
-}
-
 var keywords = map[string]int{
 	"and":    AND,
 	"class":  CLASS,
@@ -74,4 +67,11 @@ var keywords = map[string]int{
 	"true":   TRUE,
 	"var":    VAR,
 	"while":  WHILE,
+}
+
+type Token struct {
+	TokenType int
+	Lexeme    string
+	Literal   interface{}
+	Line      int
 }

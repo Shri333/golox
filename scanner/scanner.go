@@ -3,11 +3,14 @@ package scanner
 import (
 	"fmt"
 	"strconv"
+
+	"github.com/Shri333/golox/fault"
 )
 
 type scanner struct {
 	Source  string
 	Tokens  []Token
+	Error     error
 	start   int
 	current int
 	line    int
@@ -15,7 +18,7 @@ type scanner struct {
 
 func NewScanner(source string) *scanner {
 	tokens := make([]Token, 0, 10)
-	return &scanner{source, tokens, 0, 0, 1}
+	return &scanner{source, tokens, nil, 0, 0, 1}
 }
 
 func (s *scanner) ScanTokens() {
@@ -80,15 +83,15 @@ func (s *scanner) ScanTokens() {
 		case '\n':
 			s.line++
 		case '"':
-			s.string()
+			s.Error = s.string()
 		default:
 			if isDigit(s.Source[s.current]) {
 				s.number()
 			} else if isAlpha(s.Source[s.current]) {
 				s.identifier()
 			} else {
-				message := fmt.Sprintf("unknown character \"%c\"", s.Source[s.current])
-				fmt.Printf("Error (line %d): %s.\n", s.line, message)
+				message := fmt.Sprintf("unknown character '%c'", s.Source[s.current])
+				s.Error = fault.NewFault(s.line, message)
 			}
 		}
 		s.current++
@@ -112,7 +115,7 @@ func (s *scanner) multiComment() {
 	}
 }
 
-func (s *scanner) string() {
+func (s *scanner) string() error {
 	s.current++
 	for s.current < len(s.Source) && s.Source[s.current] != '"' {
 		if s.Source[s.current] == '\n' {
@@ -122,10 +125,12 @@ func (s *scanner) string() {
 	}
 
 	if s.current == len(s.Source) {
-		fmt.Printf("Error (line %d): unterminated string.\n", s.line)
+		return fault.NewFault(s.line, "unterminated string")
 	} else {
 		s.addToken(STRING, s.Source[s.start+1:s.current])
 	}
+
+	return nil
 }
 
 func (s *scanner) number() {
@@ -133,7 +138,7 @@ func (s *scanner) number() {
 		s.current++
 	}
 
-	if s.Source[s.current] == '.' && s.current+1 < len(s.Source) && isDigit(s.Source[s.current+1]) {
+	if s.current+1 < len(s.Source) && s.Source[s.current] == '.' && isDigit(s.Source[s.current+1]) {
 		s.current++
 		for s.current < len(s.Source) && isDigit(s.Source[s.current]) {
 			s.current++

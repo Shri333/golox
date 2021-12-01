@@ -2,41 +2,41 @@ package ast
 
 import "github.com/Shri333/golox/scanner"
 
-type Expr interface {
+type expr interface {
 	accept(v visitor) interface{}
 }
 
-type Binary struct {
-	Left     Expr
-	Operator *scanner.Token
-	Right    Expr
+type binary struct {
+	left     expr
+	operator *scanner.Token
+	right    expr
 }
 
-func (expr *Binary) accept(v visitor) interface{} {
+func (expr *binary) accept(v visitor) interface{} {
 	return v.visitBinaryExpr(expr)
 }
 
-type Grouping struct {
-	Expr Expr
+type grouping struct {
+	expression expr
 }
 
-func (expr *Grouping) accept(v visitor) interface{} {
+func (expr *grouping) accept(v visitor) interface{} {
 	return v.visitGroupingExpr(expr)
 }
 
-type Literal struct {
-	Value interface{}
+type literal struct {
+	value interface{}
 }
 
-func (expr *Literal) accept(v visitor) interface{} {
+func (expr *literal) accept(v visitor) interface{} {
 	return v.visitLiteralExpr(expr)
 }
 
-type Unary struct {
-	Operator *scanner.Token
-	Right    Expr
+type unary struct {
+	operator *scanner.Token
+	right    expr
 }
 
-func (expr *Unary) accept(v visitor) interface{} {
+func (expr *unary) accept(v visitor) interface{} {
 	return v.visitUnaryExpr(expr)
 }
