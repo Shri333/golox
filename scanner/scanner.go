@@ -10,7 +10,7 @@ import (
 type scanner struct {
 	Source  string
 	Tokens  []Token
-	Error     error
+	Error   error
 	start   int
 	current int
 	line    int
@@ -72,8 +72,6 @@ func (s *scanner) ScanTokens() {
 		case '/':
 			if s.next('/') {
 				s.singleComment()
-			} else if s.next('*') {
-				s.multiComment()
 			} else {
 				s.addToken(SLASH, nil)
 			}
@@ -104,15 +102,6 @@ func (s *scanner) singleComment() {
 		s.current++
 	}
 	s.current--
-}
-
-func (s *scanner) multiComment() {
-	for s.current < len(s.Source) && (s.Source[s.current] != '*' || !s.next('/')) {
-		if s.Source[s.current] == '\n' {
-			s.line++
-		}
-		s.current++
-	}
 }
 
 func (s *scanner) string() error {

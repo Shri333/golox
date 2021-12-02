@@ -8,16 +8,16 @@ func (p *Printer) Print(e expr) string {
 	return e.accept(p).(string)
 }
 
-func (p *Printer) visitBinaryExpr(expr *binary) interface{} {
-	return p.parenthesize(expr.operator.Lexeme, expr.left, expr.right)
+func (p *Printer) visitBinaryExpr(b *binary) interface{} {
+	return p.parenthesize(b.operator.Lexeme, b.left, b.right)
 }
 
-func (p *Printer) visitGroupingExpr(expr *grouping) interface{} {
-	return p.parenthesize("group", expr.expression)
+func (p *Printer) visitGroupingExpr(g *grouping) interface{} {
+	return p.parenthesize("group", g.expression)
 }
 
-func (p *Printer) visitLiteralExpr(expr *literal) interface{} {
-	switch value := expr.value.(type) {
+func (p *Printer) visitLiteralExpr(l *literal) interface{} {
+	switch value := l.value.(type) {
 	case float64:
 		return strconv.FormatFloat(value, 'f', -1, 64)
 	case bool:
@@ -29,8 +29,8 @@ func (p *Printer) visitLiteralExpr(expr *literal) interface{} {
 	}
 }
 
-func (p *Printer) visitUnaryExpr(expr *unary) interface{} {
-	return p.parenthesize(expr.operator.Lexeme, expr.right)
+func (p *Printer) visitUnaryExpr(u *unary) interface{} {
+	return p.parenthesize(u.operator.Lexeme, u.right)
 }
 
 func (p *Printer) parenthesize(name string, exprs ...expr) string {

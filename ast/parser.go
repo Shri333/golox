@@ -43,7 +43,6 @@ func (p *parser) equality() expr {
 	}
 
 	left := p.comparison()
-
 	for p.match(scanner.BANG_EQUAL, scanner.EQUAL_EQUAL) {
 		operator := p.tokens[p.current-1]
 		right := p.comparison()
@@ -60,7 +59,6 @@ func (p *parser) comparison() expr {
 	}
 
 	left := p.term()
-
 	for p.match(scanner.GREATER, scanner.GREATER_EQUAL, scanner.LESS, scanner.LESS_EQUAL) {
 		operator := p.tokens[p.current-1]
 		right := p.term()
@@ -77,7 +75,6 @@ func (p *parser) term() expr {
 	}
 
 	left := p.factor()
-
 	for p.match(scanner.MINUS, scanner.PLUS) {
 		operator := p.tokens[p.current-1]
 		right := p.factor()
@@ -94,7 +91,6 @@ func (p *parser) factor() expr {
 	}
 
 	left := p.unary()
-
 	for p.match(scanner.SLASH, scanner.STAR) {
 		operator := p.tokens[p.current-1]
 		right := p.unary()
@@ -145,7 +141,8 @@ func (p *parser) primary() expr {
 	if p.match(scanner.LEFT_PAREN) {
 		e := p.expression()
 		if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN {
-			fault.NewFault(p.tokens[p.current].Line, "expected ')' after expression")
+			message := fmt.Sprintf("expected ')' after \"%s\"", p.tokens[p.current].Lexeme)
+			fault.NewFault(p.tokens[p.current].Line, message)
 			p.panic = true
 			p.Error = true
 			return nil
