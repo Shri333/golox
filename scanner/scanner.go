@@ -10,7 +10,7 @@ import (
 type scanner struct {
 	Source  string
 	Tokens  []Token
-	Error   error
+	Error   bool
 	start   int
 	current int
 	line    int
@@ -18,7 +18,7 @@ type scanner struct {
 
 func NewScanner(source string) *scanner {
 	tokens := make([]Token, 0, 10)
-	return &scanner{source, tokens, nil, 0, 0, 1}
+	return &scanner{source, tokens, false, 0, 0, 1}
 }
 
 func (s *scanner) ScanTokens() {
@@ -89,7 +89,8 @@ func (s *scanner) ScanTokens() {
 				s.identifier()
 			} else {
 				message := fmt.Sprintf("unknown character '%c'", s.Source[s.current])
-				s.Error = fault.NewFault(s.line, message)
+				fault.NewFault(s.line, message)
+				s.Error = true
 			}
 		}
 		s.current++
@@ -104,7 +105,7 @@ func (s *scanner) singleComment() {
 	s.current--
 }
 
-func (s *scanner) string() error {
+func (s *scanner) string() bool {
 	s.current++
 	for s.current < len(s.Source) && s.Source[s.current] != '"' {
 		if s.Source[s.current] == '\n' {
@@ -114,12 +115,13 @@ func (s *scanner) string() error {
 	}
 
 	if s.current == len(s.Source) {
-		return fault.NewFault(s.line, "unterminated string")
+		fault.NewFault(s.line, "unterminated string")
+		return true
 	} else {
 		s.addToken(STRING, s.Source[s.start+1:s.current])
 	}
 
-	return nil
+	return false
 }
 
 func (s *scanner) number() {

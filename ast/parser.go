@@ -18,7 +18,7 @@ func NewParser(tokens []scanner.Token) *parser {
 	return &parser{tokens, 0, false, false}
 }
 
-func (p *parser) Parse() expr {
+func (p *parser) Parse() Expr {
 	root := p.expression()
 	if p.panic {
 		return nil
@@ -27,7 +27,7 @@ func (p *parser) Parse() expr {
 	return root
 }
 
-func (p *parser) expression() expr {
+func (p *parser) expression() Expr {
 	if p.panic {
 		p.synchronize()
 		return nil
@@ -36,7 +36,7 @@ func (p *parser) expression() expr {
 	return p.equality()
 }
 
-func (p *parser) equality() expr {
+func (p *parser) equality() Expr {
 	if p.panic {
 		p.synchronize()
 		return nil
@@ -46,13 +46,13 @@ func (p *parser) equality() expr {
 	for p.match(scanner.BANG_EQUAL, scanner.EQUAL_EQUAL) {
 		operator := p.tokens[p.current-1]
 		right := p.comparison()
-		left = &binary{left, &operator, right}
+		left = &Binary{left, &operator, right}
 	}
 
 	return left
 }
 
-func (p *parser) comparison() expr {
+func (p *parser) comparison() Expr {
 	if p.panic {
 		p.synchronize()
 		return nil
@@ -62,13 +62,13 @@ func (p *parser) comparison() expr {
 	for p.match(scanner.GREATER, scanner.GREATER_EQUAL, scanner.LESS, scanner.LESS_EQUAL) {
 		operator := p.tokens[p.current-1]
 		right := p.term()
-		left = &binary{left, &operator, right}
+		left = &Binary{left, &operator, right}
 	}
 
 	return left
 }
 
-func (p *parser) term() expr {
+func (p *parser) term() Expr {
 	if p.panic {
 		p.synchronize()
 		return nil
@@ -78,13 +78,13 @@ func (p *parser) term() expr {
 	for p.match(scanner.MINUS, scanner.PLUS) {
 		operator := p.tokens[p.current-1]
 		right := p.factor()
-		left = &binary{left, &operator, right}
+		left = &Binary{left, &operator, right}
 	}
 
 	return left
 }
 
-func (p *parser) factor() expr {
+func (p *parser) factor() Expr {
 	if p.panic {
 		p.synchronize()
 		return nil
@@ -94,13 +94,13 @@ func (p *parser) factor() expr {
 	for p.match(scanner.SLASH, scanner.STAR) {
 		operator := p.tokens[p.current-1]
 		right := p.unary()
-		left = &binary{left, &operator, right}
+		left = &Binary{left, &operator, right}
 	}
 
 	return left
 }
 
-func (p *parser) unary() expr {
+func (p *parser) unary() Expr {
 	if p.panic {
 		p.synchronize()
 		return nil
@@ -109,33 +109,33 @@ func (p *parser) unary() expr {
 	if p.match(scanner.BANG, scanner.MINUS) {
 		operator := p.tokens[p.current-1]
 		right := p.unary()
-		return &unary{&operator, right}
+		return &Unary{&operator, right}
 	}
 
 	return p.primary()
 }
 
-func (p *parser) primary() expr {
+func (p *parser) primary() Expr {
 	if p.panic {
 		p.synchronize()
 		return nil
 	}
 
 	if p.match(scanner.FALSE) {
-		return &literal{false}
+		return &Literal{false}
 	}
 
 	if p.match(scanner.TRUE) {
-		return &literal{true}
+		return &Literal{true}
 	}
 
 	if p.match(scanner.NIL) {
-		return &literal{nil}
+		return &Literal{nil}
 	}
 
 	if p.match(scanner.NUMBER, scanner.STRING) {
 		value := p.tokens[p.current-1].Literal
-		return &literal{value}
+		return &Literal{value}
 	}
 
 	if p.match(scanner.LEFT_PAREN) {
@@ -148,7 +148,7 @@ func (p *parser) primary() expr {
 			return nil
 		}
 		p.current++
-		return &grouping{e}
+		return &Grouping{e}
 	}
 
 	message := fmt.Sprintf("expected expression at \"%s\"", p.tokens[p.current].Lexeme)

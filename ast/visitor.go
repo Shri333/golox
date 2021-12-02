@@ -1,8 +1,8 @@
 package ast
 
-type visitor interface {
-	visitBinaryExpr(b *binary) interface{}
-	visitGroupingExpr(g *grouping) interface{}
-	visitLiteralExpr(l *literal) interface{}
-	visitUnaryExpr(u *unary) interface{}
+type Visitor interface {
+	VisitBinaryExpr(b *Binary) interface{}
+	VisitGroupingExpr(g *Grouping) interface{}
+	VisitLiteralExpr(l *Literal) interface{}
+	VisitUnaryExpr(u *Unary) interface{}
 }
