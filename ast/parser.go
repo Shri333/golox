@@ -97,7 +97,7 @@ func (p *parser) assignment() Expr {
 		if variable, ok := expr.(*VariableExpr); ok {
 			return &AssignExpr{variable.Name, value}
 		}
-		
+
 		fault.NewFault(equals.Line, "invalid assignment target")
 	}
 
