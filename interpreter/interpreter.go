@@ -2,32 +2,53 @@ package interpreter
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/Shri333/golox/ast"
 	"github.com/Shri333/golox/fault"
 	"github.com/Shri333/golox/scanner"
 )
 
-type interpreter struct {
-	Error bool
-}
+type interpreter struct{}
 
 func NewInterpreter() *interpreter {
-	return &interpreter{false}
+	return &interpreter{}
 }
 
-func (i *interpreter) Interpret(expr ast.Expr) {
-	value := expr.Accept(i)
-	if !i.Error {
-		fmt.Println(value)
+func (i *interpreter) Interpret(stmts []ast.Stmt) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
+	for _, stmt := range stmts {
+		stmt.Accept(i)
 	}
+
+	return
 }
 
-func (i *interpreter) VisitBinaryExpr(b *ast.Binary) interface{} {
-	if i.Error {
-		return nil
+func (i *interpreter) VisitExprStmt(e *ast.ExprStmt) interface{} {
+	e.Expression.Accept(i)
+	return nil
+}
+
+func (i *interpreter) VisitPrintStmt(p *ast.PrintStmt) interface{} {
+	value := p.Expression.Accept(i)
+	switch v := value.(type) {
+	case float64:
+		fmt.Println(strconv.FormatFloat(v, 'f', -1, 64))
+	case bool:
+		fmt.Println(strconv.FormatBool(v))
+	default:
+		fmt.Println(v)
 	}
 
+	return nil
+}
+
+func (i *interpreter) VisitBinaryExpr(b *ast.BinaryExpr) interface{} {
 	left := b.Left.Accept(i)
 	right := b.Right.Accept(i)
 
@@ -37,39 +58,19 @@ func (i *interpreter) VisitBinaryExpr(b *ast.Binary) interface{} {
 	case scanner.EQUAL_EQUAL:
 		return left == right
 	case scanner.GREATER:
-		leftValue, rightValue, err := i.checkNumberOperands(b.Operator, left, right)
-		if err != nil {
-			return nil
-		}
-
+		leftValue, rightValue := i.checkNumberOperands(b.Operator, left, right)
 		return leftValue > rightValue
 	case scanner.GREATER_EQUAL:
-		leftValue, rightValue, err := i.checkNumberOperands(b.Operator, left, right)
-		if err != nil {
-			return nil
-		}
-
+		leftValue, rightValue := i.checkNumberOperands(b.Operator, left, right)
 		return leftValue >= rightValue
 	case scanner.LESS:
-		leftValue, rightValue, err := i.checkNumberOperands(b.Operator, left, right)
-		if err != nil {
-			return nil
-		}
-
+		leftValue, rightValue := i.checkNumberOperands(b.Operator, left, right)
 		return leftValue < rightValue
 	case scanner.LESS_EQUAL:
-		leftValue, rightValue, err := i.checkNumberOperands(b.Operator, left, right)
-		if err != nil {
-			return nil
-		}
-
+		leftValue, rightValue := i.checkNumberOperands(b.Operator, left, right)
 		return leftValue <= rightValue
 	case scanner.MINUS:
-		leftValue, rightValue, err := i.checkNumberOperands(b.Operator, left, right)
-		if err != nil {
-			return nil
-		}
-
+		leftValue, rightValue := i.checkNumberOperands(b.Operator, left, right)
 		return leftValue - rightValue
 	case scanner.PLUS:
 		if leftValue, leftOk := left.(float64); leftOk {
@@ -84,49 +85,27 @@ func (i *interpreter) VisitBinaryExpr(b *ast.Binary) interface{} {
 			}
 		}
 
-		i.Error = true
-		fault.NewFault(b.Operator.Line, "operands must be two numbers or two strings")
-		return nil
+		panic(fault.NewFault(b.Operator.Line, "operands must be two numbers or two strings"))
 	case scanner.SLASH:
-		leftValue, rightValue, err := i.checkNumberOperands(b.Operator, left, right)
-		if err != nil {
-			return nil
-		}
-
+		leftValue, rightValue := i.checkNumberOperands(b.Operator, left, right)
 		return leftValue / rightValue
 	case scanner.STAR:
-		leftValue, rightValue, err := i.checkNumberOperands(b.Operator, left, right)
-		if err != nil {
-			return nil
-		}
-
+		leftValue, rightValue := i.checkNumberOperands(b.Operator, left, right)
 		return leftValue * rightValue
 	}
 
 	return nil
 }
 
-func (i *interpreter) VisitGroupingExpr(g *ast.Grouping) interface{} {
-	if i.Error {
-		return nil
-	}
-
+func (i *interpreter) VisitGroupingExpr(g *ast.GroupingExpr) interface{} {
 	return g.Expression.Accept(i)
 }
 
-func (i *interpreter) VisitLiteralExpr(l *ast.Literal) interface{} {
-	if i.Error {
-		return nil
-	}
-
+func (i *interpreter) VisitLiteralExpr(l *ast.LiteralExpr) interface{} {
 	return l.Value
 }
 
-func (i *interpreter) VisitUnaryExpr(u *ast.Unary) interface{} {
-	if i.Error {
-		return nil
-	}
-
+func (i *interpreter) VisitUnaryExpr(u *ast.UnaryExpr) interface{} {
 	right := u.Right.Accept(i)
 
 	if u.Operator.TokenType == scanner.MINUS {
@@ -134,8 +113,7 @@ func (i *interpreter) VisitUnaryExpr(u *ast.Unary) interface{} {
 			return -value
 		}
 
-		fault.NewFault(u.Operator.Line, "operand must be a number")
-		i.Error = true
+		panic(fault.NewFault(u.Operator.Line, "operand must be a number"))
 	}
 
 	if u.Operator.TokenType == scanner.BANG {
@@ -152,13 +130,12 @@ func (i *interpreter) VisitUnaryExpr(u *ast.Unary) interface{} {
 	return nil
 }
 
-func (i *interpreter) checkNumberOperands(operator *scanner.Token, left interface{}, right interface{}) (float64, float64, error) {
+func (i *interpreter) checkNumberOperands(operator *scanner.Token, left interface{}, right interface{}) (float64, float64) {
 	if leftValue, leftOk := left.(float64); leftOk {
 		if rightValue, rightOk := right.(float64); rightOk {
-			return leftValue, rightValue, nil
+			return leftValue, rightValue
 		}
 	}
 
-	i.Error = true
-	return 0.0, 0.0, fault.NewFault(operator.Line, "operands must be numbers")
+	panic(fault.NewFault(operator.Line, "operands must be numbers"))
 }

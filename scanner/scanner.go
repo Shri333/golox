@@ -10,18 +10,18 @@ import (
 type scanner struct {
 	Source  string
 	Tokens  []Token
-	Error   bool
 	start   int
 	current int
 	line    int
+	err     error
 }
 
 func NewScanner(source string) *scanner {
 	tokens := make([]Token, 0, 10)
-	return &scanner{source, tokens, false, 0, 0, 1}
+	return &scanner{source, tokens, 0, 0, 1, nil}
 }
 
-func (s *scanner) ScanTokens() {
+func (s *scanner) ScanTokens() error {
 	for s.current < len(s.Source) {
 		s.start = s.current
 		switch s.Source[s.current] {
@@ -81,7 +81,10 @@ func (s *scanner) ScanTokens() {
 		case '\n':
 			s.line++
 		case '"':
-			s.Error = s.string()
+			err := s.string()
+			if s.err == nil {
+				s.err = err
+			}
 		default:
 			if isDigit(s.Source[s.current]) {
 				s.number()
@@ -89,13 +92,13 @@ func (s *scanner) ScanTokens() {
 				s.identifier()
 			} else {
 				message := fmt.Sprintf("unknown character '%c'", s.Source[s.current])
-				fault.NewFault(s.line, message)
-				s.Error = true
+				s.err = fault.NewFault(s.line, message)
 			}
 		}
 		s.current++
 	}
 	s.Tokens = append(s.Tokens, Token{EOF, "EOF", nil, s.line})
+	return s.err
 }
 
 func (s *scanner) singleComment() {
@@ -105,7 +108,7 @@ func (s *scanner) singleComment() {
 	s.current--
 }
 
-func (s *scanner) string() bool {
+func (s *scanner) string() error {
 	s.current++
 	for s.current < len(s.Source) && s.Source[s.current] != '"' {
 		if s.Source[s.current] == '\n' {
@@ -115,13 +118,12 @@ func (s *scanner) string() bool {
 	}
 
 	if s.current == len(s.Source) {
-		fault.NewFault(s.line, "unterminated string")
-		return true
+		return fault.NewFault(s.line, "unterminated string")
 	} else {
 		s.addToken(STRING, s.Source[s.start+1:s.current])
 	}
 
-	return false
+	return nil
 }
 
 func (s *scanner) number() {

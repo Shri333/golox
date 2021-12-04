@@ -53,20 +53,20 @@ func runPrompt() {
 
 func run(source string) int {
 	scanner := scanner.NewScanner(source)
-	scanner.ScanTokens()
-	if scanner.Error {
+	err := scanner.ScanTokens()
+	if err != nil {
 		return 1
 	}
 
 	parser := ast.NewParser(scanner.Tokens)
-	expr := parser.Parse()
-	if parser.Error {
+	stmts, err := parser.Parse()
+	if err != nil {
 		return 1
 	}
 
 	interpreter := interpreter.NewInterpreter()
-	interpreter.Interpret(expr)
-	if interpreter.Error {
+	err = interpreter.Interpret(stmts)
+	if err != nil {
 		return 2
 	}
 
