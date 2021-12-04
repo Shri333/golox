@@ -9,10 +9,13 @@ import (
 	"github.com/Shri333/golox/scanner"
 )
 
-type interpreter struct{}
+type interpreter struct {
+	env *environment
+}
 
 func NewInterpreter() *interpreter {
-	return &interpreter{}
+	env := &environment{map[string]interface{}{}}
+	return &interpreter{env}
 }
 
 func (i *interpreter) Interpret(stmts []ast.Stmt) (err error) {
@@ -41,10 +44,22 @@ func (i *interpreter) VisitPrintStmt(p *ast.PrintStmt) interface{} {
 		fmt.Println(strconv.FormatFloat(v, 'f', -1, 64))
 	case bool:
 		fmt.Println(strconv.FormatBool(v))
+	case nil:
+		fmt.Println("nil")
 	default:
 		fmt.Println(v)
 	}
 
+	return nil
+}
+
+func (i *interpreter) VisitVarStmt(v *ast.VarStmt) interface{} {
+	var value interface{}
+	if v.Initializer != nil {
+		value = v.Initializer.Accept(i)
+	}
+
+	i.env.define(v.Name.Lexeme, value)
 	return nil
 }
 
@@ -128,6 +143,16 @@ func (i *interpreter) VisitUnaryExpr(u *ast.UnaryExpr) interface{} {
 	}
 
 	return nil
+}
+
+func (i *interpreter) VisitVariableExpr(v *ast.VariableExpr) interface{} {
+	return i.env.get(v.Name)
+}
+
+func (i *interpreter) VisitAssignExpr(a *ast.AssignExpr) interface{} {
+	value := a.Value.Accept(i)
+	i.env.assign(a.Name, value)
+	return value
 }
 
 func (i *interpreter) checkNumberOperands(operator *scanner.Token, left interface{}, right interface{}) (float64, float64) {

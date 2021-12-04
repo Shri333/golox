@@ -1,5 +1,7 @@
 package ast
 
+import "github.com/Shri333/golox/scanner"
+
 type Stmt interface {
 	Accept(v StmtVisitor) interface{}
 }
@@ -18,4 +20,13 @@ type PrintStmt struct {
 
 func (p *PrintStmt) Accept(v StmtVisitor) interface{} {
 	return v.VisitPrintStmt(p)
+}
+
+type VarStmt struct {
+	Name        *scanner.Token
+	Initializer Expr
+}
+
+func (v *VarStmt) Accept(v_ StmtVisitor) interface{} {
+	return v_.VisitVarStmt(v)
 }

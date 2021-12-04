@@ -5,9 +5,12 @@ type ExprVisitor interface {
 	VisitGroupingExpr(g *GroupingExpr) interface{}
 	VisitLiteralExpr(l *LiteralExpr) interface{}
 	VisitUnaryExpr(u *UnaryExpr) interface{}
+	VisitVariableExpr(v *VariableExpr) interface{}
+	VisitAssignExpr(a *AssignExpr) interface{}
 }
 
 type StmtVisitor interface {
 	VisitExprStmt(e *ExprStmt) interface{}
 	VisitPrintStmt(p *PrintStmt) interface{}
+	VisitVarStmt(p *VarStmt) interface{}
 }

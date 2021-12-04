@@ -21,15 +21,41 @@ func (p *parser) Parse() ([]Stmt, error) {
 	stmts := []Stmt{}
 
 	for p.tokens[p.current].TokenType != scanner.EOF {
-		stmts = append(stmts, p.statement())
+		stmts = append(stmts, p.declaration())
 	}
 
 	return stmts, p.err
 }
 
-func (p *parser) statement() Stmt {
+func (p *parser) declaration() Stmt {
 	defer p.synchronize()
 
+	if p.match(scanner.VAR) {
+		return p.varDeclaration()
+	}
+
+	return p.statement()
+}
+
+func (p *parser) varDeclaration() Stmt {
+	if !p.match(scanner.IDENTIFIER) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected variable name"))
+	}
+
+	name := p.tokens[p.current-1]
+	var initializer Expr
+	if p.match(scanner.EQUAL) {
+		initializer = p.expression()
+	}
+
+	if !p.match(scanner.SEMICOLON) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ';' after variable declaration"))
+	}
+
+	return &VarStmt{&name, initializer}
+}
+
+func (p *parser) statement() Stmt {
 	if p.match(scanner.PRINT) {
 		return p.printStatement()
 	}
@@ -41,7 +67,7 @@ func (p *parser) printStatement() Stmt {
 	expr := p.expression()
 
 	if !p.match(scanner.SEMICOLON) {
-		panic(fault.NewFault(p.tokens[p.current].Line, "expected semicolon after print statement"))
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ';' after print statement"))
 	}
 
 	return &PrintStmt{expr}
@@ -51,14 +77,31 @@ func (p *parser) exprStatement() Stmt {
 	expr := p.expression()
 
 	if !p.match(scanner.SEMICOLON) {
-		panic(fault.NewFault(p.tokens[p.current].Line, "expected semicolon after expression statement"))
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ';' after expression statement"))
 	}
 
 	return &ExprStmt{expr}
 }
 
 func (p *parser) expression() Expr {
-	return p.equality()
+	return p.assignment()
+}
+
+func (p *parser) assignment() Expr {
+	expr := p.equality()
+
+	if p.match(scanner.EQUAL) {
+		equals := p.tokens[p.current-1]
+		value := p.assignment()
+
+		if variable, ok := expr.(*VariableExpr); ok {
+			return &AssignExpr{variable.Name, value}
+		}
+		
+		fault.NewFault(equals.Line, "invalid assignment target")
+	}
+
+	return expr
 }
 
 func (p *parser) equality() Expr {
@@ -135,6 +178,11 @@ func (p *parser) primary() Expr {
 	if p.match(scanner.NUMBER, scanner.STRING) {
 		value := p.tokens[p.current-1].Literal
 		return &LiteralExpr{value}
+	}
+
+	if p.match(scanner.IDENTIFIER) {
+		previous := &p.tokens[p.current-1]
+		return &VariableExpr{previous}
 	}
 
 	if p.match(scanner.LEFT_PAREN) {

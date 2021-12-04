@@ -40,3 +40,20 @@ type UnaryExpr struct {
 func (u *UnaryExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitUnaryExpr(u)
 }
+
+type VariableExpr struct {
+	Name *scanner.Token
+}
+
+func (v *VariableExpr) Accept(v_ ExprVisitor) interface{} {
+	return v_.VisitVariableExpr(v)
+}
+
+type AssignExpr struct {
+	Name  *scanner.Token
+	Value Expr
+}
+
+func (a *AssignExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitAssignExpr(a)
+}

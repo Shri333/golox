@@ -27,21 +27,27 @@ func runFile(path string) {
 		log.Fatal(err)
 	}
 
-	result := run(string(bytes))
-	if result == 1 {
+	stmts, err := scanAndParse(string(bytes))
+	if err != nil {
 		os.Exit(65)
 	}
-	if result == 2 {
+
+	interpreter := interpreter.NewInterpreter()
+	err = interpreter.Interpret(stmts)
+	if err != nil {
 		os.Exit(70)
 	}
 }
 
 func runPrompt() {
 	scanner := bufio.NewScanner(os.Stdin)
+	interpreter := interpreter.NewInterpreter()
 	fmt.Print("> ")
 	for scanner.Scan() {
-		text := scanner.Text()
-		run(text)
+		stmts, err := scanAndParse(scanner.Text())
+		if err == nil {
+			interpreter.Interpret(stmts)
+		}
 		fmt.Print("> ")
 	}
 
@@ -51,24 +57,18 @@ func runPrompt() {
 	}
 }
 
-func run(source string) int {
+func scanAndParse(source string) ([]ast.Stmt, error) {
 	scanner := scanner.NewScanner(source)
 	err := scanner.ScanTokens()
 	if err != nil {
-		return 1
+		return nil, err
 	}
 
 	parser := ast.NewParser(scanner.Tokens)
 	stmts, err := parser.Parse()
 	if err != nil {
-		return 1
+		return nil, err
 	}
 
-	interpreter := interpreter.NewInterpreter()
-	err = interpreter.Interpret(stmts)
-	if err != nil {
-		return 2
-	}
-
-	return 0
+	return stmts, nil
 }
