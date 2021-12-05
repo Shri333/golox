@@ -87,10 +87,6 @@ func (p *parser) exprStatement() Stmt {
 	return &ExprStmt{expr}
 }
 
-func (p *parser) expression() Expr {
-	return p.assignment()
-}
-
 func (p *parser) block() []Stmt {
 	stmts := []Stmt{}
 
@@ -103,6 +99,10 @@ func (p *parser) block() []Stmt {
 	}
 
 	return stmts
+}
+
+func (p *parser) expression() Expr {
+	return p.assignment()
 }
 
 func (p *parser) assignment() Expr {
