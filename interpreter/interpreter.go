@@ -14,7 +14,7 @@ type interpreter struct {
 }
 
 func NewInterpreter() *interpreter {
-	env := &environment{map[string]interface{}{}}
+	env := &environment{nil, map[string]interface{}{}}
 	return &interpreter{env}
 }
 
@@ -60,6 +60,21 @@ func (i *interpreter) VisitVarStmt(v *ast.VarStmt) interface{} {
 	}
 
 	i.env.define(v.Name.Lexeme, value)
+	return nil
+}
+
+func (i *interpreter) VisitBlockStmt(b *ast.BlockStmt) interface{} {
+	prev := i.env
+
+	defer func() {
+		i.env = prev
+	}()
+
+	i.env = &environment{prev, map[string]interface{}{}}
+	for _, stmt := range b.Statements {
+		stmt.Accept(i)
+	}
+
 	return nil
 }
 

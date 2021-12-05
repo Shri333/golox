@@ -60,6 +60,10 @@ func (p *parser) statement() Stmt {
 		return p.printStatement()
 	}
 
+	if p.match(scanner.LEFT_BRACE) {
+		return &BlockStmt{p.block()}
+	}
+
 	return p.exprStatement()
 }
 
@@ -85,6 +89,20 @@ func (p *parser) exprStatement() Stmt {
 
 func (p *parser) expression() Expr {
 	return p.assignment()
+}
+
+func (p *parser) block() []Stmt {
+	stmts := []Stmt{}
+
+	for p.tokens[p.current].TokenType != scanner.EOF && p.tokens[p.current].TokenType != scanner.RIGHT_BRACE {
+		stmts = append(stmts, p.declaration())
+	}
+
+	if !p.match(scanner.RIGHT_BRACE) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected '}' after block"))
+	}
+
+	return stmts
 }
 
 func (p *parser) assignment() Expr {
