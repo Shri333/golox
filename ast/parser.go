@@ -60,6 +60,18 @@ func (p *parser) statement() Stmt {
 		return p.printStatement()
 	}
 
+	if p.match(scanner.IF) {
+		return p.ifStatement()
+	}
+
+	if p.match(scanner.FOR) {
+		return p.forStatement()
+	}
+
+	if p.match(scanner.WHILE) {
+		return p.whileStatement()
+	}
+
 	if p.match(scanner.LEFT_BRACE) {
 		return &BlockStmt{p.block()}
 	}
@@ -77,14 +89,84 @@ func (p *parser) printStatement() Stmt {
 	return &PrintStmt{expr}
 }
 
-func (p *parser) exprStatement() Stmt {
-	expr := p.expression()
-
-	if !p.match(scanner.SEMICOLON) {
-		panic(fault.NewFault(p.tokens[p.current].Line, "expected ';' after expression statement"))
+func (p *parser) ifStatement() Stmt {
+	if !p.match(scanner.LEFT_PAREN) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected '(' after if"))
 	}
 
-	return &ExprStmt{expr}
+	condition := p.expression()
+	if !p.match(scanner.RIGHT_PAREN) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ')' after conditional expression"))
+	}
+
+	thenBranch := p.statement()
+	var elseBranch Stmt
+	if p.match(scanner.ELSE) {
+		elseBranch = p.statement()
+	}
+
+	return &IfStmt{condition, thenBranch, elseBranch}
+}
+
+func (p *parser) forStatement() Stmt {
+	if !p.match(scanner.LEFT_PAREN) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected '(' after for"))
+	}
+
+	var initializer Stmt
+	if p.match(scanner.SEMICOLON) {
+		initializer = nil
+	} else if p.match(scanner.VAR) {
+		initializer = p.varDeclaration()
+	} else {
+		initializer = p.exprStatement()
+	}
+
+	var condition Expr
+	if p.tokens[p.current].TokenType != scanner.EOF && p.tokens[p.current].TokenType != scanner.SEMICOLON {
+		condition = p.expression()
+	}
+	if !p.match(scanner.SEMICOLON) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ';' after conditional expression"))
+	}
+
+	var increment Expr
+	if p.tokens[p.current].TokenType != scanner.EOF && p.tokens[p.current].TokenType != scanner.RIGHT_PAREN {
+		increment = p.expression()
+	}
+	if !p.match(scanner.RIGHT_PAREN) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ')' after for clause"))
+	}
+
+	body := p.statement()
+	if increment != nil {
+		body = &BlockStmt{[]Stmt{body, &ExprStmt{increment}}}
+	}
+
+	if condition == nil {
+		condition = &LiteralExpr{true}
+	}
+
+	body = &WhileStmt{condition, body}
+
+	if initializer != nil {
+		body = &BlockStmt{[]Stmt{initializer, body}}
+	}
+
+	return body
+}
+
+func (p *parser) whileStatement() Stmt {
+	if !p.match(scanner.LEFT_PAREN) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected '(' after while"))
+	}
+
+	condition := p.expression()
+	if !p.match(scanner.RIGHT_PAREN) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ')' after conditional expression"))
+	}
+
+	return &WhileStmt{condition, p.statement()}
 }
 
 func (p *parser) block() []Stmt {
@@ -101,12 +183,22 @@ func (p *parser) block() []Stmt {
 	return stmts
 }
 
+func (p *parser) exprStatement() Stmt {
+	expr := p.expression()
+
+	if !p.match(scanner.SEMICOLON) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected ';' after expression statement"))
+	}
+
+	return &ExprStmt{expr}
+}
+
 func (p *parser) expression() Expr {
 	return p.assignment()
 }
 
 func (p *parser) assignment() Expr {
-	expr := p.equality()
+	expr := p.or()
 
 	if p.match(scanner.EQUAL) {
 		equals := p.tokens[p.current-1]
@@ -120,6 +212,30 @@ func (p *parser) assignment() Expr {
 	}
 
 	return expr
+}
+
+func (p *parser) or() Expr {
+	left := p.and()
+
+	for p.match(scanner.OR) {
+		operator := p.tokens[p.current-1]
+		right := p.and()
+		left = &LogicalExpr{left, &operator, right}
+	}
+
+	return left
+}
+
+func (p *parser) and() Expr {
+	left := p.equality()
+
+	for p.match(scanner.AND) {
+		operator := p.tokens[p.current-1]
+		right := p.equality()
+		left = &LogicalExpr{left, &operator, right}
+	}
+
+	return left
 }
 
 func (p *parser) equality() Expr {

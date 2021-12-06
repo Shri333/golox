@@ -38,3 +38,22 @@ type BlockStmt struct {
 func (b *BlockStmt) Accept(v StmtVisitor) interface{} {
 	return v.VisitBlockStmt(b)
 }
+
+type IfStmt struct {
+	Condition  Expr
+	ThenBranch Stmt
+	ElseBranch Stmt
+}
+
+func (i *IfStmt) Accept(v StmtVisitor) interface{} {
+	return v.VisitIfStmt(i)
+}
+
+type WhileStmt struct {
+	Condition Expr
+	Body      Stmt
+}
+
+func (w *WhileStmt) Accept(v StmtVisitor) interface{} {
+	return v.VisitWhileStmt(w)
+}

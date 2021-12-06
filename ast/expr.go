@@ -57,3 +57,13 @@ type AssignExpr struct {
 func (a *AssignExpr) Accept(v ExprVisitor) interface{} {
 	return v.VisitAssignExpr(a)
 }
+
+type LogicalExpr struct {
+	Left     Expr
+	Operator *scanner.Token
+	Right    Expr
+}
+
+func (l *LogicalExpr) Accept(v ExprVisitor) interface{} {
+	return v.VisitLogicalExpr(l)
+}
