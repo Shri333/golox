@@ -8,6 +8,7 @@ type ExprVisitor interface {
 	VisitVariableExpr(v *VariableExpr) interface{}
 	VisitAssignExpr(a *AssignExpr) interface{}
 	VisitLogicalExpr(l *LogicalExpr) interface{}
+	VisitCallExpr(c *CallExpr) interface{}
 }
 
 type StmtVisitor interface {
@@ -17,4 +18,6 @@ type StmtVisitor interface {
 	VisitBlockStmt(b *BlockStmt) interface{}
 	VisitIfStmt(i *IfStmt) interface{}
 	VisitWhileStmt(w *WhileStmt) interface{}
+	VisitFunStmt(f *FunStmt) interface{}
+	VisitReturnStmt(r *ReturnStmt) interface{}
 }

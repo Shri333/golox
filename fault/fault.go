@@ -8,7 +8,7 @@ type Fault struct {
 }
 
 func (f *Fault) Error() string {
-	return fmt.Sprintf("Error (line %d): %s.", f.line, f.message)
+	return fmt.Sprintf("Error (line %d): %s", f.line, f.message)
 }
 
 func NewFault(line int, message string) *Fault {

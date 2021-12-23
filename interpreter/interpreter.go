@@ -10,12 +10,14 @@ import (
 )
 
 type interpreter struct {
-	env *environment
+	global *environment
+	env    *environment
 }
 
 func NewInterpreter() *interpreter {
-	env := &environment{nil, map[string]interface{}{}}
-	return &interpreter{env}
+	global := &environment{nil, make(map[string]interface{})}
+	global.define("clock", &clock{})
+	return &interpreter{global, global}
 }
 
 func (i *interpreter) Interpret(stmts []ast.Stmt) (err error) {
@@ -65,12 +67,11 @@ func (i *interpreter) VisitVarStmt(v *ast.VarStmt) interface{} {
 
 func (i *interpreter) VisitBlockStmt(b *ast.BlockStmt) interface{} {
 	prev := i.env
-
 	defer func() {
 		i.env = prev
 	}()
 
-	i.env = &environment{prev, map[string]interface{}{}}
+	i.env = &environment{prev, make(map[string]interface{})}
 	for _, stmt := range b.Statements {
 		stmt.Accept(i)
 	}
@@ -95,6 +96,20 @@ func (i *interpreter) VisitWhileStmt(w *ast.WhileStmt) interface{} {
 	}
 
 	return nil
+}
+
+func (i *interpreter) VisitFunStmt(f *ast.FunStmt) interface{} {
+	i.env.define(f.Name.Lexeme, &function{f})
+	return nil
+}
+
+func (i *interpreter) VisitReturnStmt(v *ast.ReturnStmt) interface{} {
+	var value interface{}
+	if v.Value != nil {
+		value = v.Value.Accept(i)
+	}
+
+	panic(value)
 }
 
 func (i *interpreter) VisitBinaryExpr(b *ast.BinaryExpr) interface{} {
@@ -197,6 +212,25 @@ func (i *interpreter) VisitLogicalExpr(l *ast.LogicalExpr) interface{} {
 	}
 
 	return l.Right.Accept(i)
+}
+
+func (i *interpreter) VisitCallExpr(c *ast.CallExpr) interface{} {
+	callee := c.Callee.Accept(i)
+	args := []interface{}{}
+	for _, arg := range c.Arguments {
+		args = append(args, arg.Accept(i))
+	}
+
+	if f, ok := callee.(callable); ok {
+		if len(args) != f.arity() {
+			message := fmt.Sprintf("expected %d arguments but got %d.", f.arity(), len(args))
+			panic(fault.NewFault(c.Paren.Line, message))
+		}
+
+		return f.call(i, args)
+	}
+
+	panic(fault.NewFault(c.Paren.Line, "can only call functions and classes"))
 }
 
 func (i *interpreter) checkNumberOperands(operator *scanner.Token, left interface{}, right interface{}) (float64, float64) {

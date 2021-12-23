@@ -57,3 +57,22 @@ type WhileStmt struct {
 func (w *WhileStmt) Accept(v StmtVisitor) interface{} {
 	return v.VisitWhileStmt(w)
 }
+
+type FunStmt struct {
+	Name   *scanner.Token
+	Params []*scanner.Token
+	Body   *BlockStmt
+}
+
+func (f *FunStmt) Accept(v StmtVisitor) interface{} {
+	return v.VisitFunStmt(f)
+}
+
+type ReturnStmt struct {
+	Keyword *scanner.Token
+	Value   Expr
+}
+
+func (r *ReturnStmt) Accept(v StmtVisitor) interface{} {
+	return v.VisitReturnStmt(r)
+}
