@@ -23,7 +23,11 @@ func NewInterpreter() *interpreter {
 func (i *interpreter) Interpret(stmts []ast.Stmt) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = r.(error)
+			if f, ok := r.(*fault.Fault); ok {
+				err = f
+			} else {
+				err = fault.NewFault(r.([]interface{})[1].(int), "cannot return outside of a function")
+			}
 		}
 	}()
 
@@ -109,7 +113,7 @@ func (i *interpreter) VisitReturnStmt(v *ast.ReturnStmt) interface{} {
 		value = v.Value.Accept(i)
 	}
 
-	panic(value)
+	panic([]interface{}{value, v.Keyword.Line})
 }
 
 func (i *interpreter) VisitBinaryExpr(b *ast.BinaryExpr) interface{} {

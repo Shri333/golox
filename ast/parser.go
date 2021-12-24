@@ -72,7 +72,7 @@ func (p *parser) funDeclaration(kind string) *FunStmt {
 	}
 
 	params := []*scanner.Token{}
-	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN {
+	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN && p.tokens[p.current].TokenType != scanner.EOF {
 		if !p.match(scanner.IDENTIFIER) {
 			message := fmt.Sprintf("expected parameter name at %s", p.tokens[p.current].Lexeme)
 			panic(fault.NewFault(p.tokens[p.current].Line, message))
@@ -174,7 +174,7 @@ func (p *parser) forStatement() Stmt {
 	}
 
 	var condition Expr
-	if p.tokens[p.current].TokenType != scanner.SEMICOLON {
+	if p.tokens[p.current].TokenType != scanner.SEMICOLON && p.tokens[p.current].TokenType != scanner.EOF {
 		condition = p.expression()
 	}
 	if !p.match(scanner.SEMICOLON) {
@@ -182,7 +182,7 @@ func (p *parser) forStatement() Stmt {
 	}
 
 	var increment Expr
-	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN {
+	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN && p.tokens[p.current].TokenType != scanner.EOF {
 		increment = p.expression()
 	}
 	if !p.match(scanner.RIGHT_PAREN) {
@@ -247,7 +247,7 @@ func (p *parser) exprStatement() *ExprStmt {
 func (p *parser) returnStatement() *ReturnStmt {
 	keyword := p.tokens[p.current-1]
 	var value Expr
-	if p.tokens[p.current].TokenType != scanner.SEMICOLON {
+	if p.tokens[p.current].TokenType != scanner.SEMICOLON && p.tokens[p.current].TokenType != scanner.EOF {
 		value = p.expression()
 	}
 
@@ -374,7 +374,7 @@ func (p *parser) call() Expr {
 
 func (p *parser) arguments() ([]Expr, scanner.Token) {
 	args := []Expr{}
-	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN {
+	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN && p.tokens[p.current].TokenType != scanner.EOF {
 		args = append(args, p.expression())
 		for p.match(scanner.COMMA) {
 			args = append(args, p.expression())
@@ -416,26 +416,25 @@ func (p *parser) primary() Expr {
 
 	if p.match(scanner.LEFT_PAREN) {
 		e := p.expression()
-		if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN {
-			message := fmt.Sprintf("expected ')' after \"%s\"", p.tokens[p.current].Lexeme)
+		if !p.match(scanner.RIGHT_PAREN) {
+			message := fmt.Sprintf("expected ')' after '%s'", p.tokens[p.current-1].Lexeme)
 			panic(fault.NewFault(p.tokens[p.current].Line, message))
 		}
-		p.current++
 		return &GroupingExpr{e}
 	}
 
-	message := fmt.Sprintf("expected expression at \"%s\"", p.tokens[p.current].Lexeme)
+	message := fmt.Sprintf("expected expression at '%s'", p.tokens[p.current].Lexeme)
 	panic(fault.NewFault(p.tokens[p.current].Line, message))
 }
 
 func (p *parser) match(types ...int) bool {
-	if p.tokens[p.current].TokenType == scanner.EOF {
+	currentType := p.tokens[p.current].TokenType
+	if currentType == scanner.EOF {
 		return false
 	}
 
-	actualType := p.tokens[p.current].TokenType
 	for _, tokenType := range types {
-		if actualType == tokenType {
+		if currentType == tokenType {
 			p.current++
 			return true
 		}

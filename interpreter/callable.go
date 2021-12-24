@@ -38,7 +38,13 @@ func (f *function) call(i *interpreter, args []interface{}) (value interface{}) 
 
 	prev := i.env
 	defer func() {
-		value = recover()
+		if r := recover(); r != nil {
+			if data, ok := r.([]interface{}); ok {
+				value = data[0]
+			} else {
+				panic(r)
+			}
+		}
 		i.env = prev
 	}()
 
