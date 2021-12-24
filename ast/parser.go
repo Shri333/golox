@@ -223,7 +223,7 @@ func (p *parser) whileStatement() *WhileStmt {
 func (p *parser) blockStatement() *BlockStmt {
 	stmts := []Stmt{}
 
-	for p.tokens[p.current].TokenType != scanner.RIGHT_BRACE {
+	for p.tokens[p.current].TokenType != scanner.RIGHT_BRACE && p.tokens[p.current].TokenType != scanner.EOF {
 		stmts = append(stmts, p.declaration())
 	}
 
