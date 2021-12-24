@@ -21,7 +21,7 @@ func (c *clock) call(i *interpreter, args []interface{}) interface{} {
 }
 
 func (c clock) String() string {
-	return "<native fun>"
+	return "<native function clock>"
 }
 
 type function struct {
@@ -38,14 +38,13 @@ func (f *function) call(i *interpreter, args []interface{}) (value interface{}) 
 
 	prev := i.env
 	defer func() {
-		if r := recover(); r != nil {
-			if data, ok := r.([]interface{}); ok {
-				value = data[0]
-			} else {
-				panic(r)
-			}
-		}
 		i.env = prev
+		r := recover()
+		if err, ok := r.(error); ok {
+			panic(err)
+		} else {
+			value = r
+		}
 	}()
 
 	i.env = env
@@ -57,5 +56,5 @@ func (f *function) call(i *interpreter, args []interface{}) (value interface{}) 
 }
 
 func (f function) String() string {
-	return fmt.Sprintf("<fun %s >", f.declaration.Name.Lexeme)
+	return fmt.Sprintf("<function %s >", f.declaration.Name.Lexeme)
 }

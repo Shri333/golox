@@ -10,11 +10,12 @@ import (
 type parser struct {
 	tokens  []scanner.Token
 	current int
+	fdepth  int
 	err     error
 }
 
 func NewParser(tokens []scanner.Token) *parser {
-	return &parser{tokens, 0, nil}
+	return &parser{tokens, 0, 0, nil}
 }
 
 func (p *parser) Parse() ([]Stmt, error) {
@@ -99,6 +100,8 @@ func (p *parser) funDeclaration(kind string) *FunStmt {
 		panic(fault.NewFault(p.tokens[p.current].Line, message))
 	}
 
+	p.fdepth++
+	defer func() { p.fdepth-- }()
 	return &FunStmt{&name, params, p.blockStatement()}
 }
 
@@ -246,6 +249,10 @@ func (p *parser) exprStatement() *ExprStmt {
 
 func (p *parser) returnStatement() *ReturnStmt {
 	keyword := p.tokens[p.current-1]
+	if p.fdepth == 0 {
+		panic(fault.NewFault(keyword.Line, "cannot return outside of a function"))
+	}
+
 	var value Expr
 	if p.tokens[p.current].TokenType != scanner.SEMICOLON && p.tokens[p.current].TokenType != scanner.EOF {
 		value = p.expression()
