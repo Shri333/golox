@@ -26,12 +26,13 @@ func (c clock) String() string {
 
 type function struct {
 	declaration *ast.FunStmt
+	closure     *environment
 }
 
 func (f *function) arity() int { return len(f.declaration.Params) }
 
 func (f *function) call(i *interpreter, args []interface{}) (value interface{}) {
-	env := &environment{i.global, make(map[string]interface{})}
+	env := &environment{f.closure, make(map[string]interface{})}
 	for i := 0; i < f.arity(); i++ {
 		env.define(f.declaration.Params[i].Lexeme, args[i])
 	}
@@ -56,5 +57,5 @@ func (f *function) call(i *interpreter, args []interface{}) (value interface{}) 
 }
 
 func (f function) String() string {
-	return fmt.Sprintf("<function %s >", f.declaration.Name.Lexeme)
+	return fmt.Sprintf("<function %s>", f.declaration.Name.Lexeme)
 }

@@ -97,7 +97,7 @@ func (i *interpreter) VisitWhileStmt(w *ast.WhileStmt) interface{} {
 }
 
 func (i *interpreter) VisitFunStmt(f *ast.FunStmt) interface{} {
-	i.env.define(f.Name.Lexeme, &function{f})
+	i.env.define(f.Name.Lexeme, &function{f, i.env})
 	return nil
 }
 
