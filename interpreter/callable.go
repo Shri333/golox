@@ -4,19 +4,19 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/Shri333/golox/ast"
+	"github.com/Shri333/golox/parser"
 )
 
 type callable interface {
 	arity() int
-	call(i *interpreter, args []interface{}) interface{}
+	call(i *Interpreter, args []interface{}) interface{}
 }
 
 type clock struct{}
 
 func (c *clock) arity() int { return 0 }
 
-func (c *clock) call(i *interpreter, args []interface{}) interface{} {
+func (c *clock) call(i *Interpreter, args []interface{}) interface{} {
 	return float64(time.Now().UnixMilli() / 1000)
 }
 
@@ -25,21 +25,21 @@ func (c clock) String() string {
 }
 
 type function struct {
-	declaration *ast.FunStmt
+	declaration *parser.FunStmt
 	closure     *environment
 }
 
 func (f *function) arity() int { return len(f.declaration.Params) }
 
-func (f *function) call(i *interpreter, args []interface{}) (value interface{}) {
+func (f *function) call(i *Interpreter, args []interface{}) (value interface{}) {
 	env := &environment{f.closure, make(map[string]interface{})}
 	for i := 0; i < f.arity(); i++ {
 		env.define(f.declaration.Params[i].Lexeme, args[i])
 	}
 
-	prev := i.env
+	prev := i.current
 	defer func() {
-		i.env = prev
+		i.current = prev
 		r := recover()
 		if err, ok := r.(error); ok {
 			panic(err)
@@ -48,7 +48,7 @@ func (f *function) call(i *interpreter, args []interface{}) (value interface{}) 
 		}
 	}()
 
-	i.env = env
+	i.current = env
 	for _, stmt := range f.declaration.Body.Statements {
 		stmt.Accept(i)
 	}

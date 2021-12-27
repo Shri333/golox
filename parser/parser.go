@@ -1,4 +1,4 @@
-package ast
+package parser
 
 import (
 	"fmt"
@@ -7,18 +7,17 @@ import (
 	"github.com/Shri333/golox/scanner"
 )
 
-type parser struct {
+type Parser struct {
 	tokens  []scanner.Token
 	current int
-	fdepth  int
 	err     error
 }
 
-func NewParser(tokens []scanner.Token) *parser {
-	return &parser{tokens, 0, 0, nil}
+func NewParser(tokens []scanner.Token) *Parser {
+	return &Parser{tokens, 0, nil}
 }
 
-func (p *parser) Parse() ([]Stmt, error) {
+func (p *Parser) Parse() ([]Stmt, error) {
 	stmts := []Stmt{}
 
 	for p.tokens[p.current].TokenType != scanner.EOF {
@@ -28,7 +27,7 @@ func (p *parser) Parse() ([]Stmt, error) {
 	return stmts, p.err
 }
 
-func (p *parser) declaration() Stmt {
+func (p *Parser) declaration() Stmt {
 	defer p.synchronize()
 
 	if p.match(scanner.VAR) {
@@ -42,7 +41,7 @@ func (p *parser) declaration() Stmt {
 	return p.statement()
 }
 
-func (p *parser) varDeclaration() *VarStmt {
+func (p *Parser) varDeclaration() *VarStmt {
 	if !p.match(scanner.IDENTIFIER) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected variable name"))
 	}
@@ -60,7 +59,7 @@ func (p *parser) varDeclaration() *VarStmt {
 	return &VarStmt{&name, initializer}
 }
 
-func (p *parser) funDeclaration(kind string) *FunStmt {
+func (p *Parser) funDeclaration(kind string) *FunStmt {
 	if !p.match(scanner.IDENTIFIER) {
 		message := fmt.Sprintf("expected %s name", kind)
 		panic(fault.NewFault(p.tokens[p.current].Line, message))
@@ -100,12 +99,10 @@ func (p *parser) funDeclaration(kind string) *FunStmt {
 		panic(fault.NewFault(p.tokens[p.current].Line, message))
 	}
 
-	p.fdepth++
-	defer func() { p.fdepth-- }()
 	return &FunStmt{&name, params, p.blockStatement()}
 }
 
-func (p *parser) statement() Stmt {
+func (p *Parser) statement() Stmt {
 	if p.match(scanner.PRINT) {
 		return p.printStatement()
 	}
@@ -133,7 +130,7 @@ func (p *parser) statement() Stmt {
 	return p.exprStatement()
 }
 
-func (p *parser) printStatement() *PrintStmt {
+func (p *Parser) printStatement() *PrintStmt {
 	expr := p.expression()
 
 	if !p.match(scanner.SEMICOLON) {
@@ -143,7 +140,7 @@ func (p *parser) printStatement() *PrintStmt {
 	return &PrintStmt{expr}
 }
 
-func (p *parser) ifStatement() *IfStmt {
+func (p *Parser) ifStatement() *IfStmt {
 	if !p.match(scanner.LEFT_PAREN) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '(' after if"))
 	}
@@ -162,7 +159,7 @@ func (p *parser) ifStatement() *IfStmt {
 	return &IfStmt{condition, thenBranch, elseBranch}
 }
 
-func (p *parser) forStatement() Stmt {
+func (p *Parser) forStatement() Stmt {
 	if !p.match(scanner.LEFT_PAREN) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '(' after for"))
 	}
@@ -210,7 +207,7 @@ func (p *parser) forStatement() Stmt {
 	return body
 }
 
-func (p *parser) whileStatement() *WhileStmt {
+func (p *Parser) whileStatement() *WhileStmt {
 	if !p.match(scanner.LEFT_PAREN) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '(' after while"))
 	}
@@ -223,21 +220,21 @@ func (p *parser) whileStatement() *WhileStmt {
 	return &WhileStmt{condition, p.statement()}
 }
 
-func (p *parser) blockStatement() *BlockStmt {
+func (p *Parser) blockStatement() *BlockStmt {
 	stmts := []Stmt{}
 
 	for p.tokens[p.current].TokenType != scanner.RIGHT_BRACE && p.tokens[p.current].TokenType != scanner.EOF {
 		stmts = append(stmts, p.declaration())
 	}
 
-	if !p.match(scanner.RIGHT_BRACE) {
+	if !p.match(scanner.RIGHT_BRACE) && p.err == nil {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '}' after block"))
 	}
 
 	return &BlockStmt{stmts}
 }
 
-func (p *parser) exprStatement() *ExprStmt {
+func (p *Parser) exprStatement() *ExprStmt {
 	expr := p.expression()
 
 	if !p.match(scanner.SEMICOLON) {
@@ -247,11 +244,8 @@ func (p *parser) exprStatement() *ExprStmt {
 	return &ExprStmt{expr}
 }
 
-func (p *parser) returnStatement() *ReturnStmt {
+func (p *Parser) returnStatement() *ReturnStmt {
 	keyword := p.tokens[p.current-1]
-	if p.fdepth == 0 {
-		panic(fault.NewFault(keyword.Line, "cannot return outside of a function"))
-	}
 
 	var value Expr
 	if p.tokens[p.current].TokenType != scanner.SEMICOLON && p.tokens[p.current].TokenType != scanner.EOF {
@@ -265,11 +259,11 @@ func (p *parser) returnStatement() *ReturnStmt {
 	return &ReturnStmt{&keyword, value}
 }
 
-func (p *parser) expression() Expr {
+func (p *Parser) expression() Expr {
 	return p.assignment()
 }
 
-func (p *parser) assignment() Expr {
+func (p *Parser) assignment() Expr {
 	expr := p.or()
 
 	if p.match(scanner.EQUAL) {
@@ -286,7 +280,7 @@ func (p *parser) assignment() Expr {
 	return expr
 }
 
-func (p *parser) or() Expr {
+func (p *Parser) or() Expr {
 	left := p.and()
 
 	for p.match(scanner.OR) {
@@ -298,7 +292,7 @@ func (p *parser) or() Expr {
 	return left
 }
 
-func (p *parser) and() Expr {
+func (p *Parser) and() Expr {
 	left := p.equality()
 
 	for p.match(scanner.AND) {
@@ -310,7 +304,7 @@ func (p *parser) and() Expr {
 	return left
 }
 
-func (p *parser) equality() Expr {
+func (p *Parser) equality() Expr {
 	left := p.comparison()
 
 	for p.match(scanner.BANG_EQUAL, scanner.EQUAL_EQUAL) {
@@ -322,7 +316,7 @@ func (p *parser) equality() Expr {
 	return left
 }
 
-func (p *parser) comparison() Expr {
+func (p *Parser) comparison() Expr {
 	left := p.term()
 
 	for p.match(scanner.GREATER, scanner.GREATER_EQUAL, scanner.LESS, scanner.LESS_EQUAL) {
@@ -334,7 +328,7 @@ func (p *parser) comparison() Expr {
 	return left
 }
 
-func (p *parser) term() Expr {
+func (p *Parser) term() Expr {
 	left := p.factor()
 
 	for p.match(scanner.MINUS, scanner.PLUS) {
@@ -346,7 +340,7 @@ func (p *parser) term() Expr {
 	return left
 }
 
-func (p *parser) factor() Expr {
+func (p *Parser) factor() Expr {
 	left := p.unary()
 
 	for p.match(scanner.SLASH, scanner.STAR) {
@@ -358,7 +352,7 @@ func (p *parser) factor() Expr {
 	return left
 }
 
-func (p *parser) unary() Expr {
+func (p *Parser) unary() Expr {
 	if p.match(scanner.BANG, scanner.MINUS) {
 		operator := p.tokens[p.current-1]
 		right := p.unary()
@@ -368,7 +362,7 @@ func (p *parser) unary() Expr {
 	return p.call()
 }
 
-func (p *parser) call() Expr {
+func (p *Parser) call() Expr {
 	expr := p.primary()
 
 	for p.match(scanner.LEFT_PAREN) {
@@ -379,7 +373,7 @@ func (p *parser) call() Expr {
 	return expr
 }
 
-func (p *parser) arguments() ([]Expr, scanner.Token) {
+func (p *Parser) arguments() ([]Expr, scanner.Token) {
 	args := []Expr{}
 	if p.tokens[p.current].TokenType != scanner.RIGHT_PAREN && p.tokens[p.current].TokenType != scanner.EOF {
 		args = append(args, p.expression())
@@ -398,7 +392,7 @@ func (p *parser) arguments() ([]Expr, scanner.Token) {
 	return args, p.tokens[p.current-1]
 }
 
-func (p *parser) primary() Expr {
+func (p *Parser) primary() Expr {
 	if p.match(scanner.FALSE) {
 		return &LiteralExpr{false}
 	}
@@ -434,7 +428,7 @@ func (p *parser) primary() Expr {
 	panic(fault.NewFault(p.tokens[p.current].Line, message))
 }
 
-func (p *parser) match(types ...int) bool {
+func (p *Parser) match(types ...int) bool {
 	currentType := p.tokens[p.current].TokenType
 	if currentType == scanner.EOF {
 		return false
@@ -450,7 +444,7 @@ func (p *parser) match(types ...int) bool {
 	return false
 }
 
-func (p *parser) synchronize() {
+func (p *Parser) synchronize() {
 	if r := recover(); r != nil {
 		defer func() {
 			p.err = r.(error)

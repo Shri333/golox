@@ -1,4 +1,4 @@
-package ast
+package parser
 
 type ExprVisitor interface {
 	VisitBinaryExpr(b *BinaryExpr) interface{}
@@ -14,7 +14,7 @@ type ExprVisitor interface {
 type StmtVisitor interface {
 	VisitExprStmt(e *ExprStmt) interface{}
 	VisitPrintStmt(p *PrintStmt) interface{}
-	VisitVarStmt(p *VarStmt) interface{}
+	VisitVarStmt(v *VarStmt) interface{}
 	VisitBlockStmt(b *BlockStmt) interface{}
 	VisitIfStmt(i *IfStmt) interface{}
 	VisitWhileStmt(w *WhileStmt) interface{}

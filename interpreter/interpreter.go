@@ -4,23 +4,24 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/Shri333/golox/ast"
 	"github.com/Shri333/golox/fault"
+	"github.com/Shri333/golox/parser"
 	"github.com/Shri333/golox/scanner"
 )
 
-type interpreter struct {
-	global *environment
-	env    *environment
+type Interpreter struct {
+	global  *environment
+	current *environment
+	locals  map[parser.Expr]int
 }
 
-func NewInterpreter() *interpreter {
+func NewInterpreter() *Interpreter {
 	global := &environment{nil, make(map[string]interface{})}
 	global.define("clock", &clock{})
-	return &interpreter{global, global}
+	return &Interpreter{global, global, make(map[parser.Expr]int)}
 }
 
-func (i *interpreter) Interpret(stmts []ast.Stmt) (err error) {
+func (i *Interpreter) Interpret(stmts []parser.Stmt) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = r.(error)
@@ -34,12 +35,16 @@ func (i *interpreter) Interpret(stmts []ast.Stmt) (err error) {
 	return
 }
 
-func (i *interpreter) VisitExprStmt(e *ast.ExprStmt) interface{} {
+func (i *Interpreter) Resolve(expr parser.Expr, depth int) {
+	i.locals[expr] = depth
+}
+
+func (i *Interpreter) VisitExprStmt(e *parser.ExprStmt) interface{} {
 	e.Expression.Accept(i)
 	return nil
 }
 
-func (i *interpreter) VisitPrintStmt(p *ast.PrintStmt) interface{} {
+func (i *Interpreter) VisitPrintStmt(p *parser.PrintStmt) interface{} {
 	value := p.Expression.Accept(i)
 	switch v := value.(type) {
 	case float64:
@@ -53,23 +58,23 @@ func (i *interpreter) VisitPrintStmt(p *ast.PrintStmt) interface{} {
 	return nil
 }
 
-func (i *interpreter) VisitVarStmt(v *ast.VarStmt) interface{} {
+func (i *Interpreter) VisitVarStmt(v *parser.VarStmt) interface{} {
 	var value interface{}
 	if v.Initializer != nil {
 		value = v.Initializer.Accept(i)
 	}
 
-	i.env.define(v.Name.Lexeme, value)
+	i.current.define(v.Name.Lexeme, value)
 	return nil
 }
 
-func (i *interpreter) VisitBlockStmt(b *ast.BlockStmt) interface{} {
-	prev := i.env
+func (i *Interpreter) VisitBlockStmt(b *parser.BlockStmt) interface{} {
+	prev := i.current
 	defer func() {
-		i.env = prev
+		i.current = prev
 	}()
 
-	i.env = &environment{prev, make(map[string]interface{})}
+	i.current = &environment{prev, make(map[string]interface{})}
 	for _, stmt := range b.Statements {
 		stmt.Accept(i)
 	}
@@ -77,7 +82,7 @@ func (i *interpreter) VisitBlockStmt(b *ast.BlockStmt) interface{} {
 	return nil
 }
 
-func (i *interpreter) VisitIfStmt(i_ *ast.IfStmt) interface{} {
+func (i *Interpreter) VisitIfStmt(i_ *parser.IfStmt) interface{} {
 	value := i_.Condition.Accept(i)
 	if isTruthy(value) {
 		i_.ThenBranch.Accept(i)
@@ -88,7 +93,7 @@ func (i *interpreter) VisitIfStmt(i_ *ast.IfStmt) interface{} {
 	return nil
 }
 
-func (i *interpreter) VisitWhileStmt(w *ast.WhileStmt) interface{} {
+func (i *Interpreter) VisitWhileStmt(w *parser.WhileStmt) interface{} {
 	for isTruthy(w.Condition.Accept(i)) {
 		w.Body.Accept(i)
 	}
@@ -96,12 +101,12 @@ func (i *interpreter) VisitWhileStmt(w *ast.WhileStmt) interface{} {
 	return nil
 }
 
-func (i *interpreter) VisitFunStmt(f *ast.FunStmt) interface{} {
-	i.env.define(f.Name.Lexeme, &function{f, i.env})
+func (i *Interpreter) VisitFunStmt(f *parser.FunStmt) interface{} {
+	i.current.define(f.Name.Lexeme, &function{f, i.current})
 	return nil
 }
 
-func (i *interpreter) VisitReturnStmt(v *ast.ReturnStmt) interface{} {
+func (i *Interpreter) VisitReturnStmt(v *parser.ReturnStmt) interface{} {
 	var value interface{}
 	if v.Value != nil {
 		value = v.Value.Accept(i)
@@ -110,7 +115,7 @@ func (i *interpreter) VisitReturnStmt(v *ast.ReturnStmt) interface{} {
 	panic(value)
 }
 
-func (i *interpreter) VisitBinaryExpr(b *ast.BinaryExpr) interface{} {
+func (i *Interpreter) VisitBinaryExpr(b *parser.BinaryExpr) interface{} {
 	left := b.Left.Accept(i)
 	right := b.Right.Accept(i)
 
@@ -159,15 +164,15 @@ func (i *interpreter) VisitBinaryExpr(b *ast.BinaryExpr) interface{} {
 	return nil
 }
 
-func (i *interpreter) VisitGroupingExpr(g *ast.GroupingExpr) interface{} {
+func (i *Interpreter) VisitGroupingExpr(g *parser.GroupingExpr) interface{} {
 	return g.Expression.Accept(i)
 }
 
-func (i *interpreter) VisitLiteralExpr(l *ast.LiteralExpr) interface{} {
+func (i *Interpreter) VisitLiteralExpr(l *parser.LiteralExpr) interface{} {
 	return l.Value
 }
 
-func (i *interpreter) VisitUnaryExpr(u *ast.UnaryExpr) interface{} {
+func (i *Interpreter) VisitUnaryExpr(u *parser.UnaryExpr) interface{} {
 	right := u.Right.Accept(i)
 
 	if u.Operator.TokenType == scanner.MINUS {
@@ -192,17 +197,27 @@ func (i *interpreter) VisitUnaryExpr(u *ast.UnaryExpr) interface{} {
 	return nil
 }
 
-func (i *interpreter) VisitVariableExpr(v *ast.VariableExpr) interface{} {
-	return i.env.get(v.Name)
+func (i *Interpreter) VisitVariableExpr(v *parser.VariableExpr) interface{} {
+	if dist, ok := i.locals[v]; ok {
+		return i.current.getAt(v.Name.Lexeme, dist)
+	}
+
+	return i.global.get(v.Name)
 }
 
-func (i *interpreter) VisitAssignExpr(a *ast.AssignExpr) interface{} {
+func (i *Interpreter) VisitAssignExpr(a *parser.AssignExpr) interface{} {
 	value := a.Value.Accept(i)
-	i.env.assign(a.Name, value)
+
+	if dist, ok := i.locals[a]; ok {
+		i.current.assignAt(a.Name.Lexeme, value, dist)
+	} else {
+		i.global.assign(a.Name, value)
+	}
+
 	return value
 }
 
-func (i *interpreter) VisitLogicalExpr(l *ast.LogicalExpr) interface{} {
+func (i *Interpreter) VisitLogicalExpr(l *parser.LogicalExpr) interface{} {
 	left := l.Left.Accept(i)
 
 	if (l.Operator.TokenType == scanner.OR && isTruthy(left)) || !isTruthy(left) {
@@ -212,7 +227,7 @@ func (i *interpreter) VisitLogicalExpr(l *ast.LogicalExpr) interface{} {
 	return l.Right.Accept(i)
 }
 
-func (i *interpreter) VisitCallExpr(c *ast.CallExpr) interface{} {
+func (i *Interpreter) VisitCallExpr(c *parser.CallExpr) interface{} {
 	callee := c.Callee.Accept(i)
 	args := []interface{}{}
 	for _, arg := range c.Arguments {
@@ -231,7 +246,7 @@ func (i *interpreter) VisitCallExpr(c *ast.CallExpr) interface{} {
 	panic(fault.NewFault(c.Paren.Line, "can only call functions and classes"))
 }
 
-func (i *interpreter) checkNumberOperands(operator *scanner.Token, left interface{}, right interface{}) (float64, float64) {
+func (i *Interpreter) checkNumberOperands(operator *scanner.Token, left interface{}, right interface{}) (float64, float64) {
 	if leftValue, leftOk := left.(float64); leftOk {
 		if rightValue, rightOk := right.(float64); rightOk {
 			return leftValue, rightValue

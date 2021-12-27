@@ -25,6 +25,15 @@ func (e *environment) get(name *scanner.Token) interface{} {
 	panic(fault.NewFault(name.Line, message))
 }
 
+func (e *environment) getAt(name string, dist int) interface{} {
+	ancestor := e
+	for i := 0; i < dist; i++ {
+		ancestor = ancestor.enclosing
+	}
+
+	return ancestor.values[name]
+}
+
 func (e *environment) assign(name *scanner.Token, value interface{}) {
 	if _, ok := e.values[name.Lexeme]; ok {
 		e.values[name.Lexeme] = value
@@ -34,6 +43,15 @@ func (e *environment) assign(name *scanner.Token, value interface{}) {
 		message := fmt.Sprintf("undefined variable %s", name.Lexeme)
 		panic(fault.NewFault(name.Line, message))
 	}
+}
+
+func (e *environment) assignAt(name string, value interface{}, dist int) {
+	ancestor := e
+	for i := 0; i < dist; i++ {
+		ancestor = ancestor.enclosing
+	}
+
+	ancestor.values[name] = value
 }
 
 func (e *environment) define(name string, value interface{}) {

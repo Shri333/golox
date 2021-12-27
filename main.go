@@ -6,8 +6,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/Shri333/golox/ast"
 	"github.com/Shri333/golox/interpreter"
+	"github.com/Shri333/golox/parser"
+	"github.com/Shri333/golox/resolver"
 	"github.com/Shri333/golox/scanner"
 )
 
@@ -32,40 +33,50 @@ func runFile(path string) {
 		os.Exit(65)
 	}
 
-	interpreter := interpreter.NewInterpreter()
-	err = interpreter.Interpret(stmts)
+	i := interpreter.NewInterpreter()
+	r := resolver.NewResolver(i)
+	err = r.Resolve(stmts)
+	if err != nil {
+		os.Exit(65)
+	}
+
+	err = i.Interpret(stmts)
 	if err != nil {
 		os.Exit(70)
 	}
 }
 
 func runPrompt() {
-	scanner := bufio.NewScanner(os.Stdin)
-	interpreter := interpreter.NewInterpreter()
+	s := bufio.NewScanner(os.Stdin)
+	i := interpreter.NewInterpreter()
 	fmt.Print("> ")
-	for scanner.Scan() {
-		stmts, err := scanAndParse(scanner.Text())
+	for s.Scan() {
+		stmts, err := scanAndParse(s.Text())
 		if err == nil {
-			interpreter.Interpret(stmts)
+			r := resolver.NewResolver(i)
+			err = r.Resolve(stmts)
+		}
+		if err == nil {
+			i.Interpret(stmts)
 		}
 		fmt.Print("> ")
 	}
 
-	if err := scanner.Err(); err == nil {
+	if err := s.Err(); err == nil {
 		fmt.Println("bye")
 		os.Exit(0)
 	}
 }
 
-func scanAndParse(source string) ([]ast.Stmt, error) {
-	scanner := scanner.NewScanner(source)
-	err := scanner.ScanTokens()
+func scanAndParse(source string) ([]parser.Stmt, error) {
+	s := scanner.NewScanner(source)
+	err := s.ScanTokens()
 	if err != nil {
 		return nil, err
 	}
 
-	parser := ast.NewParser(scanner.Tokens)
-	stmts, err := parser.Parse()
+	p := parser.NewParser(s.Tokens)
+	stmts, err := p.Parse()
 	if err != nil {
 		return nil, err
 	}
