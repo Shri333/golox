@@ -91,7 +91,6 @@ func (r *Resolver) VisitFunStmt(f *parser.FunStmt) interface{} {
 	r.declare(f.Name)
 	r.define(f.Name)
 	r.resolveFunction(f, F_FUNCTION)
-
 	return nil
 }
 
@@ -116,7 +115,6 @@ func (r *Resolver) VisitClassStmt(c *parser.ClassStmt) interface{} {
 	r.ctype = C_CLASS
 	r.declare(c.Name)
 	r.define(c.Name)
-
 	r.scopes = append(r.scopes, make(map[string]bool))
 	scope := r.scopes[len(r.scopes)-1]
 	scope["this"] = true

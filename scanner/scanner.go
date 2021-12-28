@@ -7,7 +7,7 @@ import (
 	"github.com/Shri333/golox/fault"
 )
 
-type scanner struct {
+type Scanner struct {
 	Source  string
 	Tokens  []Token
 	start   int
@@ -16,12 +16,12 @@ type scanner struct {
 	err     error
 }
 
-func NewScanner(source string) *scanner {
+func NewScanner(source string) *Scanner {
 	tokens := make([]Token, 0, 10)
-	return &scanner{source, tokens, 0, 0, 1, nil}
+	return &Scanner{source, tokens, 0, 0, 1, nil}
 }
 
-func (s *scanner) ScanTokens() error {
+func (s *Scanner) ScanTokens() error {
 	for s.current < len(s.Source) {
 		s.start = s.current
 		switch s.Source[s.current] {
@@ -101,14 +101,14 @@ func (s *scanner) ScanTokens() error {
 	return s.err
 }
 
-func (s *scanner) singleComment() {
+func (s *Scanner) singleComment() {
 	for s.current < len(s.Source) && s.Source[s.current] != '\n' {
 		s.current++
 	}
 	s.current--
 }
 
-func (s *scanner) string() error {
+func (s *Scanner) string() error {
 	s.current++
 	for s.current < len(s.Source) && s.Source[s.current] != '"' {
 		if s.Source[s.current] == '\n' {
@@ -126,7 +126,7 @@ func (s *scanner) string() error {
 	return nil
 }
 
-func (s *scanner) number() {
+func (s *Scanner) number() {
 	for s.current < len(s.Source) && isDigit(s.Source[s.current]) {
 		s.current++
 	}
@@ -145,7 +145,7 @@ func (s *scanner) number() {
 	}
 }
 
-func (s *scanner) identifier() {
+func (s *Scanner) identifier() {
 	for s.current < len(s.Source) && (isAlpha(s.Source[s.current]) || isDigit(s.Source[s.current])) {
 		s.current++
 	}
@@ -159,13 +159,13 @@ func (s *scanner) identifier() {
 	}
 }
 
-func (s *scanner) addToken(tokenType int, literal interface{}) {
+func (s *Scanner) addToken(tokenType int, literal interface{}) {
 	lexeme := s.Source[s.start : s.current+1]
 	token := Token{tokenType, lexeme, literal, s.line}
 	s.Tokens = append(s.Tokens, token)
 }
 
-func (s *scanner) next(c byte) bool {
+func (s *Scanner) next(c byte) bool {
 	if s.current < len(s.Source)-1 && s.Source[s.current+1] != c {
 		return false
 	}

@@ -134,7 +134,6 @@ func (i *Interpreter) VisitClassStmt(c *parser.ClassStmt) interface{} {
 func (i *Interpreter) VisitBinaryExpr(b *parser.BinaryExpr) interface{} {
 	left := b.Left.Accept(i)
 	right := b.Right.Accept(i)
-
 	switch b.Operator.TokenType {
 	case scanner.BANG_EQUAL:
 		return left != right
@@ -190,7 +189,6 @@ func (i *Interpreter) VisitLiteralExpr(l *parser.LiteralExpr) interface{} {
 
 func (i *Interpreter) VisitUnaryExpr(u *parser.UnaryExpr) interface{} {
 	right := u.Right.Accept(i)
-
 	if u.Operator.TokenType == scanner.MINUS {
 		if value, ok := right.(float64); ok {
 			return -value
@@ -223,7 +221,6 @@ func (i *Interpreter) VisitVariableExpr(v *parser.VariableExpr) interface{} {
 
 func (i *Interpreter) VisitAssignExpr(a *parser.AssignExpr) interface{} {
 	value := a.Value.Accept(i)
-
 	if dist, ok := i.locals[a]; ok {
 		i.current.assignAt(a.Name.Lexeme, value, dist)
 	} else {
@@ -235,7 +232,6 @@ func (i *Interpreter) VisitAssignExpr(a *parser.AssignExpr) interface{} {
 
 func (i *Interpreter) VisitLogicalExpr(l *parser.LogicalExpr) interface{} {
 	left := l.Left.Accept(i)
-
 	if (l.Operator.TokenType == scanner.OR && isTruthy(left)) || !isTruthy(left) {
 		return left
 	}
