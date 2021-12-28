@@ -478,9 +478,7 @@ func (p *Parser) match(types ...int) bool {
 
 func (p *Parser) synchronize() {
 	if r := recover(); r != nil {
-		defer func() {
-			p.err = r.(error)
-		}()
+		defer func() { p.err = r.(error) }()
 
 		if p.tokens[p.current].TokenType != scanner.EOF {
 			p.current++

@@ -70,9 +70,7 @@ func (i *Interpreter) VisitVarStmt(v *parser.VarStmt) interface{} {
 
 func (i *Interpreter) VisitBlockStmt(b *parser.BlockStmt) interface{} {
 	prev := i.current
-	defer func() {
-		i.current = prev
-	}()
+	defer func() { i.current = prev }()
 
 	i.current = &environment{prev, make(map[string]interface{})}
 	for _, stmt := range b.Statements {
