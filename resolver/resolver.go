@@ -7,6 +7,15 @@ import (
 	"github.com/Shri333/golox/scanner"
 )
 
+const (
+	F_NONE     = 0
+	F_FUNCTION = 1
+	F_METHOD   = 2
+	F_INIT     = 3
+	C_NONE     = 0
+	C_CLASS    = 1
+)
+
 type Resolver struct {
 	i      *interpreter.Interpreter
 	scopes []map[string]bool
@@ -15,7 +24,7 @@ type Resolver struct {
 }
 
 func NewResolver(i *interpreter.Interpreter) *Resolver {
-	return &Resolver{i, []map[string]bool{}, 0, 0}
+	return &Resolver{i, []map[string]bool{}, F_NONE, C_NONE}
 }
 
 func (r *Resolver) Resolve(stmts []parser.Stmt) (err error) {
@@ -81,18 +90,18 @@ func (r *Resolver) VisitWhileStmt(w *parser.WhileStmt) interface{} {
 func (r *Resolver) VisitFunStmt(f *parser.FunStmt) interface{} {
 	r.declare(f.Name)
 	r.define(f.Name)
-	r.resolveFunction(f, 1)
+	r.resolveFunction(f, F_FUNCTION)
 
 	return nil
 }
 
 func (r *Resolver) VisitReturnStmt(r_ *parser.ReturnStmt) interface{} {
-	if r.ftype == 0 {
+	if r.ftype == F_NONE {
 		panic(fault.NewFault(r_.Keyword.Line, "cannot return outside of a function"))
 	}
 
 	if r_.Value != nil {
-		if r.ftype == 3 {
+		if r.ftype == F_INIT {
 			panic(fault.NewFault(r_.Keyword.Line, "cannot return a value from an initializer"))
 		}
 
@@ -104,8 +113,7 @@ func (r *Resolver) VisitReturnStmt(r_ *parser.ReturnStmt) interface{} {
 
 func (r *Resolver) VisitClassStmt(c *parser.ClassStmt) interface{} {
 	enclosing := r.ctype
-	r.ctype = 1
-
+	r.ctype = C_CLASS
 	r.declare(c.Name)
 	r.define(c.Name)
 
@@ -115,9 +123,9 @@ func (r *Resolver) VisitClassStmt(c *parser.ClassStmt) interface{} {
 
 	for _, method := range c.Methods {
 		if method.Name.Lexeme == "init" {
-			r.resolveFunction(method, 3)
+			r.resolveFunction(method, F_INIT)
 		} else {
-			r.resolveFunction(method, 2)
+			r.resolveFunction(method, F_METHOD)
 		}
 	}
 
@@ -191,7 +199,7 @@ func (r *Resolver) VisitSetExpr(s *parser.SetExpr) interface{} {
 }
 
 func (r *Resolver) VisitThisExpr(t *parser.ThisExpr) interface{} {
-	if r.ctype == 0 {
+	if r.ctype == C_NONE {
 		panic(fault.NewFault(t.Keyword.Line, "cannot use 'this' outside of a class"))
 	}
 
