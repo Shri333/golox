@@ -38,6 +38,10 @@ func (p *Parser) declaration() Stmt {
 		return p.funDeclaration("function")
 	}
 
+	if p.match(scanner.CLASS) {
+		return p.classDeclaration()
+	}
+
 	return p.statement()
 }
 
@@ -100,6 +104,28 @@ func (p *Parser) funDeclaration(kind string) *FunStmt {
 	}
 
 	return &FunStmt{&name, params, p.blockStatement()}
+}
+
+func (p *Parser) classDeclaration() *ClassStmt {
+	if !p.match(scanner.IDENTIFIER) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected class name"))
+	}
+	name := p.tokens[p.current-1]
+
+	if !p.match(scanner.LEFT_BRACE) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected '{' before class body"))
+	}
+
+	methods := []*FunStmt{}
+	for p.tokens[p.current].TokenType != scanner.RIGHT_BRACE && p.tokens[p.current].TokenType != scanner.EOF {
+		methods = append(methods, p.funDeclaration("method"))
+	}
+
+	if !p.match(scanner.RIGHT_BRACE) {
+		panic(fault.NewFault(p.tokens[p.current].Line, "expected '}' after class body"))
+	}
+
+	return &ClassStmt{&name, methods}
 }
 
 func (p *Parser) statement() Stmt {
@@ -227,7 +253,7 @@ func (p *Parser) blockStatement() *BlockStmt {
 		stmts = append(stmts, p.declaration())
 	}
 
-	if !p.match(scanner.RIGHT_BRACE) && p.err == nil {
+	if !p.match(scanner.RIGHT_BRACE) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '}' after block"))
 	}
 
@@ -272,6 +298,10 @@ func (p *Parser) assignment() Expr {
 
 		if variable, ok := expr.(*VariableExpr); ok {
 			return &AssignExpr{variable.Name, value}
+		}
+
+		if get, ok := expr.(*GetExpr); ok {
+			return &SetExpr{get.Object, get.Name, value}
 		}
 
 		fault.NewFault(equals.Line, "invalid assignment target")
@@ -365,9 +395,19 @@ func (p *Parser) unary() Expr {
 func (p *Parser) call() Expr {
 	expr := p.primary()
 
-	for p.match(scanner.LEFT_PAREN) {
-		args, paren := p.arguments()
-		expr = &CallExpr{expr, paren, args}
+	for {
+		if p.match(scanner.LEFT_PAREN) {
+			args, paren := p.arguments()
+			expr = &CallExpr{expr, paren, args}
+		} else if p.match(scanner.DOT) {
+			if !p.match(scanner.IDENTIFIER) {
+				panic(fault.NewFault(p.tokens[p.current].Line, "expected property name after '.'"))
+			}
+			name := p.tokens[p.current-1]
+			expr = &GetExpr{expr, &name}
+		} else {
+			break
+		}
 	}
 
 	return expr
@@ -413,6 +453,11 @@ func (p *Parser) primary() Expr {
 	if p.match(scanner.IDENTIFIER) {
 		previous := &p.tokens[p.current-1]
 		return &VariableExpr{previous}
+	}
+
+	if p.match(scanner.THIS) {
+		previous := &p.tokens[p.current-1]
+		return &ThisExpr{previous}
 	}
 
 	if p.match(scanner.LEFT_PAREN) {

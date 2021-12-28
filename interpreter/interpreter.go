@@ -102,7 +102,8 @@ func (i *Interpreter) VisitWhileStmt(w *parser.WhileStmt) interface{} {
 }
 
 func (i *Interpreter) VisitFunStmt(f *parser.FunStmt) interface{} {
-	i.current.define(f.Name.Lexeme, &function{f, i.current})
+	fn := &function{f, i.current, false}
+	i.current.define(f.Name.Lexeme, fn)
 	return nil
 }
 
@@ -113,6 +114,21 @@ func (i *Interpreter) VisitReturnStmt(v *parser.ReturnStmt) interface{} {
 	}
 
 	panic(value)
+}
+
+func (i *Interpreter) VisitClassStmt(c *parser.ClassStmt) interface{} {
+	i.current.define(c.Name.Lexeme, nil)
+	methods := make(map[string]*function)
+	for _, method := range c.Methods {
+		if method.Name.Lexeme == "init" {
+			methods[method.Name.Lexeme] = &function{method, i.current, true}
+		} else {
+			methods[method.Name.Lexeme] = &function{method, i.current, false}
+		}
+	}
+
+	i.current.assign(c.Name, &class{c.Name.Lexeme, methods})
+	return nil
 }
 
 func (i *Interpreter) VisitBinaryExpr(b *parser.BinaryExpr) interface{} {
@@ -236,7 +252,7 @@ func (i *Interpreter) VisitCallExpr(c *parser.CallExpr) interface{} {
 
 	if f, ok := callee.(callable); ok {
 		if len(args) != f.arity() {
-			message := fmt.Sprintf("expected %d arguments but got %d.", f.arity(), len(args))
+			message := fmt.Sprintf("expected %d arguments but got %d", f.arity(), len(args))
 			panic(fault.NewFault(c.Paren.Line, message))
 		}
 
@@ -244,6 +260,34 @@ func (i *Interpreter) VisitCallExpr(c *parser.CallExpr) interface{} {
 	}
 
 	panic(fault.NewFault(c.Paren.Line, "can only call functions and classes"))
+}
+
+func (i *Interpreter) VisitGetExpr(g *parser.GetExpr) interface{} {
+	object := g.Object.Accept(i)
+	if o, ok := object.(*instance); ok {
+		return o.get(g.Name)
+	}
+
+	panic(fault.NewFault(g.Name.Line, "only instances have properties"))
+}
+
+func (i *Interpreter) VisitSetExpr(s *parser.SetExpr) interface{} {
+	object := s.Object.Accept(i)
+	if o, ok := object.(*instance); ok {
+		value := s.Value.Accept(i)
+		o.set(s.Name, value)
+		return value
+	}
+
+	panic(fault.NewFault(s.Name.Line, "only instances have fields"))
+}
+
+func (i *Interpreter) VisitThisExpr(t *parser.ThisExpr) interface{} {
+	if dist, ok := i.locals[t]; ok {
+		return i.current.getAt(t.Keyword.Lexeme, dist)
+	}
+
+	return i.global.get(t.Keyword)
 }
 
 func (i *Interpreter) checkNumberOperands(operator *scanner.Token, left interface{}, right interface{}) (float64, float64) {

@@ -76,3 +76,12 @@ type ReturnStmt struct {
 func (r *ReturnStmt) Accept(v StmtVisitor) interface{} {
 	return v.VisitReturnStmt(r)
 }
+
+type ClassStmt struct {
+	Name    *scanner.Token
+	Methods []*FunStmt
+}
+
+func (c *ClassStmt) Accept(v StmtVisitor) interface{} {
+	return v.VisitClassStmt(c)
+}
