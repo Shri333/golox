@@ -14,6 +14,7 @@ const (
 	F_INIT     = 3
 	C_NONE     = 0
 	C_CLASS    = 1
+	C_SUBCLASS = 2
 )
 
 type Resolver struct {
@@ -115,6 +116,20 @@ func (r *Resolver) VisitClassStmt(c *parser.ClassStmt) interface{} {
 	r.ctype = C_CLASS
 	r.declare(c.Name)
 	r.define(c.Name)
+	if c.Super != nil {
+		if c.Name.Lexeme == c.Super.Name.Lexeme {
+			panic(fault.NewFault(c.Super.Name.Line, "a class cannot inherit from itself"))
+		}
+		r.ctype = C_SUBCLASS
+		c.Super.Accept(r)
+	}
+
+	if c.Super != nil {
+		r.scopes = append(r.scopes, make(map[string]bool))
+		scope := r.scopes[len(r.scopes)-1]
+		scope["super"] = true
+	}
+
 	r.scopes = append(r.scopes, make(map[string]bool))
 	scope := r.scopes[len(r.scopes)-1]
 	scope["this"] = true
@@ -128,6 +143,10 @@ func (r *Resolver) VisitClassStmt(c *parser.ClassStmt) interface{} {
 	}
 
 	r.scopes = r.scopes[:len(r.scopes)-1]
+	if c.Super != nil {
+		r.scopes = r.scopes[:len(r.scopes)-1]
+	}
+
 	r.ctype = enclosing
 	return nil
 }
@@ -202,6 +221,19 @@ func (r *Resolver) VisitThisExpr(t *parser.ThisExpr) interface{} {
 	}
 
 	r.resolveLocal(t, t.Keyword)
+	return nil
+}
+
+func (r *Resolver) VisitSuperExpr(s *parser.SuperExpr) interface{} {
+	if r.ctype == C_NONE {
+		panic(fault.NewFault(s.Keyword.Line, "cannot use 'super' outside of a class"))
+	}
+
+	if r.ctype == C_CLASS {
+		panic(fault.NewFault(s.Keyword.Line, "cannot use 'super' in a class with no superclass"))
+	}
+
+	r.resolveLocal(s, s.Keyword)
 	return nil
 }
 

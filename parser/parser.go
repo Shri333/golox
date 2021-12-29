@@ -111,6 +111,15 @@ func (p *Parser) classDeclaration() *ClassStmt {
 	}
 	name := p.tokens[p.current-1]
 
+	var super *VariableExpr
+	if p.match(scanner.LESS) {
+		if !p.match(scanner.IDENTIFIER) {
+			panic(fault.NewFault(p.tokens[p.current].Line, "expected superclass name after '<'"))
+		}
+		superName := p.tokens[p.current-1]
+		super = &VariableExpr{&superName}
+	}
+
 	if !p.match(scanner.LEFT_BRACE) {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '{' before class body"))
 	}
@@ -124,7 +133,7 @@ func (p *Parser) classDeclaration() *ClassStmt {
 		panic(fault.NewFault(p.tokens[p.current].Line, "expected '}' after class body"))
 	}
 
-	return &ClassStmt{&name, methods}
+	return &ClassStmt{&name, super, methods}
 }
 
 func (p *Parser) statement() Stmt {
@@ -445,6 +454,15 @@ func (p *Parser) primary() Expr {
 	if p.match(scanner.THIS) {
 		previous := &p.tokens[p.current-1]
 		return &ThisExpr{previous}
+	}
+
+	if p.match(scanner.SUPER) {
+		keyword := p.tokens[p.current-1]
+		if !p.match(scanner.DOT) || !p.match(scanner.IDENTIFIER) {
+			panic(fault.NewFault(p.tokens[p.current].Line, "expected property access after 'super'"))
+		}
+		method := p.tokens[p.current-1]
+		return &SuperExpr{&keyword, &method}
 	}
 
 	if p.match(scanner.LEFT_PAREN) {

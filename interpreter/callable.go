@@ -77,6 +77,7 @@ func (f function) String() string {
 
 type class struct {
 	name    string
+	super   *class
 	methods map[string]*function
 }
 
@@ -102,6 +103,10 @@ func (c *class) call(i *Interpreter, args []interface{}) interface{} {
 func (c *class) findMethod(name string) *function {
 	if fn, ok := c.methods[name]; ok {
 		return fn
+	}
+
+	if c.super != nil {
+		return c.super.findMethod(name)
 	}
 
 	return nil
