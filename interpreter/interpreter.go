@@ -140,12 +140,11 @@ func (i *Interpreter) VisitClassStmt(c *parser.ClassStmt) interface{} {
 		}
 	}
 
-	c_ := &class{c.Name.Lexeme, super, methods}
 	if c.Super != nil {
 		i.current = i.current.enclosing
 	}
 
-	i.current.assign(c.Name, c_)
+	i.current.assign(c.Name, &class{c.Name.Lexeme, super, methods})
 	return nil
 }
 
