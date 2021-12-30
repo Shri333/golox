@@ -21,7 +21,7 @@ func (e *environment) get(name *scanner.Token) interface{} {
 		return e.enclosing.get(name)
 	}
 
-	message := fmt.Sprintf("undefined variable %s", name.Lexeme)
+	message := fmt.Sprintf("undefined variable '%s'", name.Lexeme)
 	panic(fault.NewFault(name.Line, message))
 }
 
@@ -40,7 +40,7 @@ func (e *environment) assign(name *scanner.Token, value interface{}) {
 	} else if e.enclosing != nil {
 		e.enclosing.assign(name, value)
 	} else {
-		message := fmt.Sprintf("undefined variable %s", name.Lexeme)
+		message := fmt.Sprintf("undefined variable '%s'", name.Lexeme)
 		panic(fault.NewFault(name.Line, message))
 	}
 }

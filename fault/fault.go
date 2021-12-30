@@ -1,6 +1,12 @@
 package fault
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+	"os"
+)
+
+var W io.Writer = os.Stdout
 
 type Fault struct {
 	line    int
@@ -13,6 +19,6 @@ func (f *Fault) Error() string {
 
 func NewFault(line int, message string) *Fault {
 	fault := &Fault{line, message}
-	fmt.Println(fault)
+	fmt.Fprintln(W, fault)
 	return fault
 }

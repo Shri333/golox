@@ -48,11 +48,11 @@ func (i *Interpreter) VisitPrintStmt(p *parser.PrintStmt) interface{} {
 	value := p.Expression.Accept(i)
 	switch v := value.(type) {
 	case float64:
-		fmt.Println(strconv.FormatFloat(v, 'f', -1, 64))
+		fmt.Fprintln(fault.W, strconv.FormatFloat(v, 'f', -1, 64))
 	case bool:
-		fmt.Println(strconv.FormatBool(v))
+		fmt.Fprintln(fault.W, strconv.FormatBool(v))
 	default:
-		fmt.Println(v)
+		fmt.Fprintln(fault.W, v)
 	}
 
 	return nil
